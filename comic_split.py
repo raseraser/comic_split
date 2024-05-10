@@ -2,25 +2,23 @@ from sys import argv
 import os
 from PIL import Image
 from pathlib import Path
+import shutil  # Import the shutil module
 
 def splitComicDbPic(file_path, dest_dir):
     image = Image.open(file_path)  # Open the image
     width, height = image.size  # Get the image dimensions
-    print(f"Processing image: {file_path}")
-    print(f"Image dimensions: {width}x{height}")
+    #print(f"Processing image: {file_path} , {width}x{height}")
 
     # Check if height is larger than width and copy the original file if so
     if height > width:
         dest_path = Path(dest_dir) / Path(file_path).name
         image.save(dest_path)
-        print(f"Copied original file to {dest_path}")
+        print(f"{os.path.basename(file_path)}: Copied original file to {os.path.basename(dest_path)}")
         return
     
     # Calculate the new dimensions for each half
     half_width = width // 2
     half_height = height
-
-    print(f"New dimensions for each half: {half_width}x{half_height}")
 
     # Split the image in half vertically
     left_half = image.crop((0, 0, half_width, height))
@@ -32,7 +30,7 @@ def splitComicDbPic(file_path, dest_dir):
         output_path = os.path.join(dest_dir, f"{name}_{i:02d}")
         _, extension = os.path.splitext(file_path)
         half.save(output_path + extension)
-        print(f"Saved half: {output_path}")
+        print(f"{os.path.basename(file_path)}: Saved half: {output_path} with {half_width}x{half_height}")
 
 def splitComicByDir(src_dir, dest_dir):
     src_dir = Path(src_dir)
@@ -48,7 +46,14 @@ def splitComicByDir(src_dir, dest_dir):
 
         for filename in files:
             file_path = Path(root) / filename
-            splitComicDbPic(file_path, destination_root)
+            extension = file_path.suffix.lower()
+            if extension in ['.png', '.jpg', '.jpeg']:
+                splitComicDbPic(file_path, destination_root)
+            else:
+                # Copy the file to the destination directory
+                destination_path = destination_root / filename
+                shutil.copy(file_path, destination_path)
+                print(f"Copied file: {file_path} to {destination_path}")
 
 
 if __name__ == "__main__":
