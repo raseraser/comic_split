@@ -6,6 +6,8 @@ from PIL import Image
 from zipfile import ZipFile
 import patoolib
 
+IMAGE_QUALITY = 90
+
 def is_image_file(filename):
     image_extensions = ['.png', '.jpg', '.jpeg', '.gif']
     extension = os.path.splitext(filename)[1].lower()
@@ -32,14 +34,18 @@ def split_comic_pics(file_path_list, dest_dir):
 
     """
     for file_path in file_path_list:
-        image = Image.open(file_path)  # Open the image
+        try:
+            image = Image.open(file_path)  # Open the image
+        except Exception as e:
+            print(f"{file_path} open Error: {e}")
+            continue
         width, height = image.size  # Get the image dimensions
 
         # Check if height is larger than width and copy the original file if so
         if height > width:
             dest_path = Path(dest_dir) / Path(file_path).name
-            image.save(dest_path)
-            print("#", end="", flush=True)
+            shutil.copy(file_path, dest_path)
+            print("O", end="", flush=True)
             continue
         
         # Calculate the new dimensions for each half
@@ -53,9 +59,10 @@ def split_comic_pics(file_path_list, dest_dir):
         # Save the split images
         name = os.path.splitext(os.path.basename(file_path))[0]
         for i, half in enumerate([left_half, right_half], 1):
-            output_path = os.path.join(dest_dir, f"{name}_{i:02d}")
+            #output_path = os.path.join(dest_dir, f"{name}_{i:02d}")
+            output_path = os.path.join(dest_dir, f"{name}_{'L' if i == 1 else 'R'}")
             _, extension = os.path.splitext(file_path)
-            half.save(output_path + extension)
+            half.save(output_path + extension, quality=IMAGE_QUALITY)
             print("#", end="", flush=True)
     print("", flush=True)
     return len(file_path_list)
@@ -126,10 +133,10 @@ def split_comics(src_dir, dest_dir):
 
         elif len(archive_files) > 0:
             destination_root.mkdir(parents=True, exist_ok=True)
-            temp_dir1 = Path(dest_dir) / f"temp1_{relative_dir.name}"
-            #temp_dir1.mkdir(parents=True, exist_ok=True)
 
             for archive_file in archive_files:
+                temp_dir1 = Path(dest_dir) / f"temp1_{relative_dir.name}"
+                temp_dir1_org = temp_dir1
                 comic_cnt += 1
                 print(f"> Process archive file {archive_file} ...")
                 # if archive_file.suffix.lower() in ['.zip', '.cbz']:
@@ -142,6 +149,13 @@ def split_comics(src_dir, dest_dir):
                 #     with py7zr.SevenZipFile(archive_file, mode='r') as szf:
                 #         szf.extractall(temp_dir1)
                 patoolib.extract_archive(str(archive_file), outdir=str(temp_dir1))
+                
+                # 針對解出來的 temp_dir1 , 先判斷該目錄底有是否只有一個目錄？若是，則進入該目錄，temp_dir1 也加上該目錄名稱
+                # Check if temp_dir1 contains only one directory
+                subdirs = [d for d in os.listdir(temp_dir1) if os.path.isdir(os.path.join(temp_dir1, d))]
+                if len(subdirs) == 1:
+                    # If so, update temp_dir1 to be that directory
+                    temp_dir1 = temp_dir1 / subdirs[0]
 
                 temp_dir2 = Path(dest_dir) / f"temp2_{relative_dir.name}"
                 temp_dir2.mkdir(parents=True, exist_ok=True)
@@ -156,7 +170,7 @@ def split_comics(src_dir, dest_dir):
                 print(f"> Compressed {cnt} images into {cbz_file}")
 
                 # Delete the temporary directories
-                shutil.rmtree(temp_dir1)
+                shutil.rmtree(temp_dir1_org)
                 shutil.rmtree(temp_dir2)
             print(f"> Compressed {len(archive_files)} archives files.")
         else:
