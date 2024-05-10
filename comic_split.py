@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 from zipfile import ZipFile
 from rarfile import RarFile
+import py7zr
 
 import shutil  # Import the shutil module
 
@@ -14,6 +15,11 @@ def is_image_file(filename):
     image_extensions = ['.png', '.jpg', '.jpeg', '.gif']
     extension = os.path.splitext(filename)[1].lower()
     return extension in image_extensions
+
+def is_compress_file(filename):
+    compress_extensions = ['.zip', '.cbz', '.rar', '.cbr', '.7z']
+    extension = os.path.splitext(filename)[1].lower()
+    return extension in compress_extensions
 
 def splitComicDbPic(file_path_list, dest_dir):
     for file_path in file_path_list:
@@ -43,8 +49,8 @@ def splitComicDbPic(file_path_list, dest_dir):
             _, extension = os.path.splitext(file_path)
             half.save(output_path + extension)
             #print(f"{os.path.basename(file_path)}: Saved half: {output_path} with {half_width}x{half_height}")
-            print("#", end="")
-    print("")
+            print("#", end="", flush=True)
+    print("", flush=True)
 
 def splitComicDbPicByDir(src_dir, dest_dir):
     file_list = []
@@ -62,12 +68,8 @@ def splitComicByDir(src_dir, dest_dir):
 
     for root, dirs, files in os.walk(src_dir):
         relative_dir = Path(root).relative_to(src_dir)
-
         # Create corresponding directory structure in dest_dir
         destination_root = dest_dir / relative_dir
-        destination_base = dest_dir / relative_dir.parent
-        destination_base.mkdir(parents=True, exist_ok=True)
-        print(f"destination_base {destination_root}")
 
         image_files = []
         archive_files = []
@@ -78,10 +80,14 @@ def splitComicByDir(src_dir, dest_dir):
 
             if is_image_file(filename):
                 image_files.append(file_path)
-            elif extension in ['.zip', '.cbz', '.rar', '.cbr']:
+            elif is_compress_file(filename):
                 archive_files.append(file_path)
 
         if len(dirs) == 0 and len(image_files) > 0:
+            print(f"> process {relative_dir} ...")
+            destination_base = dest_dir / relative_dir.parent
+            destination_base.mkdir(parents=True, exist_ok=True)
+
             temp_dir = Path(dest_dir) / f"temp_{relative_dir.name}"
             temp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -89,41 +95,49 @@ def splitComicByDir(src_dir, dest_dir):
 
             # Compress the processed images into a .cbz file
             cbz_file = destination_root.with_suffix('.cbz')  # Fix the destination path
-            print("cbz_file: ", cbz_file)
             with ZipFile(cbz_file, 'w') as zipf:
                 for image_file in temp_dir.iterdir():
                     zipf.write(image_file, arcname=image_file.name)
-            print(f"Compressed {len(image_files)} images into {cbz_file}")
+            print(f"> Compressed {len(image_files)} images into {cbz_file}")
 
             # Delete the temporary directory
             shutil.rmtree(temp_dir)
 
         elif len(archive_files) > 0:
+            destination_root.mkdir(parents=True, exist_ok=True)
             temp_dir1 = Path(dest_dir) / f"temp1_{relative_dir.name}"
-            temp_dir1.mkdir(parents=True, exist_ok=True)
+            #temp_dir1.mkdir(parents=True, exist_ok=True)
 
             for archive_file in archive_files:
+                print(f"> process archive file {archive_file} ...")
                 if archive_file.suffix.lower() in ['.zip', '.cbz']:
                     with ZipFile(archive_file, 'r') as zipf:
                         zipf.extractall(temp_dir1)
                 elif archive_file.suffix.lower() in ['.rar', '.cbr']:
                     with RarFile(archive_file, 'r') as rar:
                         rar.extractall(temp_dir1)
+                elif archive_file.suffix.lower() in ['.7z']:
+                    with py7zr.SevenZipFile(archive_file, mode='r') as szf:
+                        szf.extractall(temp_dir1)
 
-            temp_dir2 = Path(dest_dir) / f"temp2_{relative_dir.name}"
-            temp_dir2.mkdir(parents=True, exist_ok=True)
+                temp_dir2 = Path(dest_dir) / f"temp2_{relative_dir.name}"
+                temp_dir2.mkdir(parents=True, exist_ok=True)
 
-            splitComicDbPicByDir(temp_dir1, temp_dir2)
+                splitComicDbPicByDir(temp_dir1, temp_dir2)
 
-            # Compress the processed images into a .cbz file
-            cbz_file = destination_root / f"{relative_dir.stem}.cbz"
-            with ZipFile(cbz_file, 'w') as zipf:
-                for image_file in temp_dir2.iterdir():
-                    zipf.write(image_file, arcname=image_file.name)
-
-            # Delete the temporary directories
-            shutil.rmtree(temp_dir1)
-            shutil.rmtree(temp_dir2)
+                # Compress the processed images into a .cbz file
+                cbz_file = destination_root / f"{archive_file.stem}.cbz"
+                with ZipFile(cbz_file, 'w') as zipf:
+                    for image_file in temp_dir2.iterdir():
+                        zipf.write(image_file, arcname=image_file.name)
+                print(f"> Compressed {len(image_files)} images into {cbz_file}..........press Enter to continue")
+                input()
+                # Delete the temporary directories
+                shutil.rmtree(temp_dir1)
+                shutil.rmtree(temp_dir2)
+            print(f"> Compressed {len(archive_files)} archives into {cbz_file}")
+        else:
+            print(f"> skip {relative_dir} ...")
 
 
 if __name__ == "__main__":
