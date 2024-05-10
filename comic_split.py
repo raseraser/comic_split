@@ -42,7 +42,9 @@ def splitComicDbPic(file_path_list, dest_dir):
             output_path = os.path.join(dest_dir, f"{name}_{i:02d}")
             _, extension = os.path.splitext(file_path)
             half.save(output_path + extension)
-            print(f"{os.path.basename(file_path)}: Saved half: {output_path} with {half_width}x{half_height}")
+            #print(f"{os.path.basename(file_path)}: Saved half: {output_path} with {half_width}x{half_height}")
+            print("#", end="")
+    print("")
 
 def splitComicDbPicByDir(src_dir, dest_dir):
     file_list = []
@@ -63,7 +65,9 @@ def splitComicByDir(src_dir, dest_dir):
 
         # Create corresponding directory structure in dest_dir
         destination_root = dest_dir / relative_dir
-        destination_root.mkdir(parents=True, exist_ok=True)
+        destination_base = dest_dir / relative_dir.parent
+        destination_base.mkdir(parents=True, exist_ok=True)
+        print(f"destination_base {destination_root}")
 
         image_files = []
         archive_files = []
@@ -84,10 +88,12 @@ def splitComicByDir(src_dir, dest_dir):
             splitComicDbPic(image_files, temp_dir)
 
             # Compress the processed images into a .cbz file
-            cbz_file = destination_root / f"{relative_dir.name}.cbz"
+            cbz_file = destination_root.with_suffix('.cbz')  # Fix the destination path
+            print("cbz_file: ", cbz_file)
             with ZipFile(cbz_file, 'w') as zipf:
                 for image_file in temp_dir.iterdir():
                     zipf.write(image_file, arcname=image_file.name)
+            print(f"Compressed {len(image_files)} images into {cbz_file}")
 
             # Delete the temporary directory
             shutil.rmtree(temp_dir)
@@ -110,7 +116,7 @@ def splitComicByDir(src_dir, dest_dir):
             splitComicDbPicByDir(temp_dir1, temp_dir2)
 
             # Compress the processed images into a .cbz file
-            cbz_file = destination_root / f"{relative_dir.name}.cbz"
+            cbz_file = destination_root / f"{relative_dir.stem}.cbz"
             with ZipFile(cbz_file, 'w') as zipf:
                 for image_file in temp_dir2.iterdir():
                     zipf.write(image_file, arcname=image_file.name)
