@@ -4,8 +4,7 @@ from sys import argv
 from pathlib import Path
 from PIL import Image
 from zipfile import ZipFile
-from rarfile import RarFile
-import py7zr
+import patoolib
 
 def is_image_file(filename):
     image_extensions = ['.png', '.jpg', '.jpeg', '.gif']
@@ -67,7 +66,7 @@ def split_comic_pics_bydir(src_dir, dest_dir):
         file_path = os.path.join(src_dir, filename)
         if os.path.isfile(file_path) and is_image_file(filename):
             file_list.append(file_path)
-    return split_comic_pic(file_list, dest_dir)
+    return split_comic_pics(file_list, dest_dir)
 
 def split_comics(src_dir, dest_dir):
     """
@@ -133,15 +132,16 @@ def split_comics(src_dir, dest_dir):
             for archive_file in archive_files:
                 comic_cnt += 1
                 print(f"> Process archive file {archive_file} ...")
-                if archive_file.suffix.lower() in ['.zip', '.cbz']:
-                    with ZipFile(archive_file, 'r') as zipf:
-                        zipf.extractall(temp_dir1)
-                elif archive_file.suffix.lower() in ['.rar', '.cbr']:
-                    with RarFile(archive_file, 'r') as rar:
-                        rar.extractall(temp_dir1)
-                elif archive_file.suffix.lower() in ['.7z']:
-                    with py7zr.SevenZipFile(archive_file, mode='r') as szf:
-                        szf.extractall(temp_dir1)
+                # if archive_file.suffix.lower() in ['.zip', '.cbz']:
+                #     with ZipFile(archive_file, 'r') as zipf:
+                #         zipf.extractall(temp_dir1)
+                # elif archive_file.suffix.lower() in ['.rar', '.cbr']:
+                #     with RarFile(archive_file, 'r') as rar:
+                #         rar.extractall(temp_dir1)
+                # elif archive_file.suffix.lower() in ['.7z']:
+                #     with py7zr.SevenZipFile(archive_file, mode='r') as szf:
+                #         szf.extractall(temp_dir1)
+                patoolib.extract_archive(str(archive_file), outdir=str(temp_dir1))
 
                 temp_dir2 = Path(dest_dir) / f"temp2_{relative_dir.name}"
                 temp_dir2.mkdir(parents=True, exist_ok=True)

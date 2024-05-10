@@ -5,7 +5,11 @@
 
 ##### Installation (English)
 
-- ```
+- Install [7zip](https://www.7-zip.org/)
+  
+- Install required modules
+  
+  ```
   pip install -r requirements.txt
   ```
 
